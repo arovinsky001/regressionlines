@@ -1,0 +1,214 @@
+% regressionlines.m
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Author: Kenneth Gutierrez / Aaron Rovinsky
+% Date: 04/04/2019
+% Description: Use calibration files to create new force calibration
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+clear
+close all
+
+n_trials = [3 3]; % Number of trials per grid;
+total_points = 21;
+n_weights = 5;
+n_barometers = 12;
+zero_time = 100; % number of time steps to zero
+
+time_matrix = zeros(total_points,n_weights*2,max(n_trials));
+
+%Points organized based on barometer orientation
+flat_array = [1 4:8];
+angled_array = [2 3 9 10 11 12];
+
+force_list = [20 50 100 200 500]*9.8/1000; % N
+
+point_weights = zeros(total_points,n_weights,n_barometers,max(n_trials));
+force_weight = zeros(total_points,n_weights,max(n_trials));
+
+% Barometer reference for points
+barometer_map = cell(total_points);
+barometer_map{1} = 1;
+barometer_map{2} = 2;
+barometer_map{3} = 3;
+barometer_map{4} = 4;
+barometer_map{5} = 5;
+barometer_map{6} = 6;
+barometer_map{7} = 7;
+barometer_map{8} = 8;
+barometer_map{9} = 9;
+barometer_map{10} = 10;
+barometer_map{11} = 11;
+barometer_map{12} = 12;
+barometer_map{13} = [2 3];
+barometer_map{14} = [1 4];
+barometer_map{15} = [7 5];
+barometer_map{16} = [8 6];
+barometer_map{17} = [11 12];
+barometer_map{18} = [9 10];
+barometer_map{19} = [9 10 7];
+barometer_map{20} = [1 2 3 4];
+barometer_map{21} = [8 6 11 12];
+
+% Matrix marking the time where weights are placed (grid1/calibration 1)
+
+% time_matrix(grid points, 2 x weights (start time,end_time), grid #)
+% Points 1-12: Grid 1, Points 13:18: Grid 2, Points 19-21: Grid 3
+
+time_matrix(1:12,:,1) = [3 6 10 17 21 27 31 38 45 56; %point 1
+    4 9 14 18 23 30 36 42 51 61;
+    4 9 13 18 23 29 34 41 51 63;
+    5 9 13 17 22 27 32 37 47 56;
+    3 8 12 19 23 32 37 42 51 63;
+    4 10 14 19 24 29 33 41 50 64;
+    3 10 14 22 26 33 38 46 53 66;
+    4 8 12 18 21 27 32 38 57 67;
+    4 10 14 23 28 37 41 55 92 108;
+    3 10 14 24 28 41 46 59 79 93;
+    3 8 12 17 21 28 33 38 58 66;
+    4 9 13 19 24 31 37 44 58 67;
+    ];
+
+time_matrix(1:12,:,2) = [3 10 14 18 23 30 35 43 63 71;
+    4 11 16 21 25 34 40 47 56 62;
+    3 10 14 21 25 32 37 45 62 71;
+    3 8 12 19 23 30 35 45 61 70;
+    3 9 14 21 25 32 37 43 60 72;
+    3 12 19 29 34 39 43 51 67 76;
+    4 9 13 19 24 31 36 45 73 83;
+    4 12 16 24 29 35 41 47 58 72;
+    3 12 16 26 30 43 49 60 78 93;
+    4 11 15 23 27 36 41 50 80 92;
+    4 11 15 20 25 33 39 45 68 79;
+    3 8 12 17 21 27 32 39 64 73;
+    ];
+
+time_matrix(1:12,:,3) = [3 11 14 21 25 33 37 47 60 71;
+    4 8 12 16 21 26 30 35 46 52;
+    3 8 15 22 30 35 44 51 75 83;
+    4 8 12 20 25 33 38 46 56 69;
+    3 9 13 20 24 34 38 50 55 67;
+    3 8 11 20 25 37 41 48 54 64;
+    3 9 12 20 23 31 36 44 57 66;
+    3 11 15 22 26 34 39 47 54 66;
+    3 12 16 24 29 40 44 51 81 93;
+    3 9 13 21 26 35 40 52 76 93;
+    4 10 14 21 25 33 38 46 54 60;
+    5 14 19 27 33 42 50 57 68 82;
+    ];
+
+time_matrix(13:18,:,1) = [3 12 16 24 29 39 45 56 70 80;
+    4 16 20 33 38 50 56 67 74 85;
+    3 12 16 25 29 38 42 52 61 71;
+    3 13 16 23 26 33 37 45 50 59;
+    4 14 18 28 33 42 49 58 72 85;
+    4 12 27 40 58 72 79 91 132 147;
+    ];
+
+time_matrix(13:18,:,2) = [4 11 15 23 29 39 43 51 61 69;
+    4 10 19 29 33 43 46 54 59 69;
+    3 14 18 27 30 39 43 51 58 68;
+    3 9 12 20 24 33 41 49 67 77;
+    3 12 16 25 31 41 49 59 81 93;
+    5 17 23 33 39 49 62 73 99 115;
+    ];
+    
+time_matrix(13:18,:,3) = [4 13 17 25 30 38 44 54 61 74;
+    3 10 15 22 29 36 40 48 53 62;
+    3 12 15 22 28 37 41 51 56 71;
+    3 10 14 23 27 35 39 50 55 67;
+    5 14 19 29 34 45 52 62 91 101;
+    4 9 17 22 29 37 42 49 66 76;
+    ];
+
+n_grids = length(n_trials);
+for n = 1:n_grids
+  
+    %load data from calibration directory based on grid and trial
+    main_dir = sprintf('calibration/grid%i/',n);
+    switch n
+      case 1
+        points = 1:12;
+      case 2
+        points = 13:18;
+    end
+
+    % Determine force based on data averate defined at start/end time
+    for m = 1:n_trials(n)
+      dir_name = [main_dir sprintf('trial%i/point*.csv',m)];
+      source_dir = dir(dir_name);
+      n_points = length(source_dir);
+      for i = points
+        data = load(sprintf([main_dir 'trial%i/point%i.csv'],m,i));
+        data(:,2:13) = data(:,2:13) - mean(data(1:zero_time,2:13),1);
+        for j = 1:n_weights
+          point_idx = find(data(:,1)>time_matrix(i,1+(j-1)*2,m) & ...
+          data(:,1) <= time_matrix(i,j*2,m));
+          point_data = data(point_idx,:);
+          point_weights(i,j,:,m) = mean(point_data(:,2:13));
+          force_weight(i,j,m) = mean(abs(point_weights(i,j,barometer_map{i},m)));
+        end
+      end
+    end
+    
+    % Grid 1 Plotting
+    if n == 1
+        % linear regression on angled barometers
+        figure(1)
+        hold on
+        for i = points
+          angled_data = [force_weight(i,:,1);
+            force_weight(i,:,2);
+            force_weight(i,:,3)];
+          plot(force_list,angled_data,'*--')
+          x = repmat(force_list,3,1);
+          p_angle = polyfit(x,angled_data,1);
+          x_plot = 0:0.01:5;
+          y_plot = p_angle(1)*x_plot+p_angle(2);
+          plot(x_plot,y_plot,'Color','red')
+        end
+        xlabel('Force (N)')
+        ylabel('Barometer Output (kPa)')
+        title('Angled Barometer Force Calibration')
+        hold off
+
+        % linear regression for flat barometers
+        figure(2)
+        hold on
+        for i = points
+          flat_data = [force_weight(i,:,1);
+            force_weight(i,:,2);
+            force_weight(i,:,3)];
+          plot(force_list,flat_data,'*--')
+          x = repmat(force_list,3,1);
+          p_flat = polyfit(x,flat_data,1);
+          x_plot = 0:0.01:5;
+          y_plot = p_flat(1)*x_plot+p_flat(2);
+          plot(x_plot,y_plot,'Color','red')
+        end
+        xlabel('Force (N)')
+        ylabel('Barometer Output (kPa)')
+        title('Flat Barometer Force Calibration')
+        hold off
+    end
+    
+    
+    % Grid 2 Plotting
+    if n == 2
+       figure(4)
+       hold on
+       for i = points
+        grid2_data = [force_weight(i,:,1);
+          force_weight(i,:,2);
+          force_weight(i,:,3)];
+        plot(force_list,grid2_data,'*--')
+        x = repmat(force_list,3,1);
+        p_grid2 = polyfit(x,grid2_data,1);
+        x_plot = 0:0.01:5;
+        y_plot = p_grid2(1)*x_plot+p_grid2(2);
+        plot(x_plot,y_plot,'Color','red')
+      end
+        xlabel('Force (N)')
+        ylabel('Barometer Output (kPa)');
+        title('Grid # 2')
+        hold off
+    end
+end
